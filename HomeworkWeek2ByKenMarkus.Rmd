@@ -1,0 +1,56 @@
+---
+title: "MSDA R Programming Week 2 Homework"
+author: "Ken Markus"
+date: "November 6, 2015"
+output: html_document
+---
+
+The assignment is as follows:
+*R has built in functions for choose() and factorial(). Your task is to write your own variation of the choose() function, that does not use either of these functions.*
+
+Our solutions follows by writing two separate functions.
+
+First, we will need a function to calculate the factorial of an integer. Note that we did not include basic error-checking, such as ensuring that the integer was zero or higher.
+```{r}
+#Calculate the factorial of an integer without leveraging pre-built functions
+compute.factorial <- function (x){
+  if (x==1) {
+    return(x)
+  } else {
+    return(x * compute.factorial (x-1))
+  }
+}
+```
+
+Following that we must now create the choose function, which is a simple one-line code.
+```{r}
+#Calculate "n choose r"
+compute.choose <- function(n,r) {
+  return(compute.factorial(n)/{compute.factorial(r) * compute.factorial(n-r)})
+}
+
+```
+
+Ok, great! Now that we have that, let's review the output from the custom function:
+
+```{r}
+compute.choose(5,3)
+```
+
+and now let's compare it to the in-built function:
+```{r}
+choose(5,3)
+```
+
+Nice! The results should be the same. Let's compare the two for a few more pairs:
+```{r}
+compute.choose(10,5)
+choose(10,5)
+compute.choose(5,4)
+choose(5,4)
+```
+
+So we have seen that `compute.choose` yields output the same as `choose`.
+
+Here is the results of an in-line call of `compute.choose(5,3)`: `r compute.choose(5,3)`
+Excellent!
