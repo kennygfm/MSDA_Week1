@@ -1,0 +1,61 @@
+---
+title: "Week 3 Assignment"
+author: "Ken Markus"
+date: "November 14, 2015"
+output: html_document
+---
+
+Assignment is summarized as follows:
+*Pull data from: https://archive.ics.uci.edu/ml/datasets/Mushroom .*
+
+Take the data, and create a data frame with a subset of the columns (and if you like rows).
+```{r}
+theUrl="https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data"
+#Load all of the data into mushroom_data
+mushroom_data <- read.table(file = theUrl, header = FALSE, sep = ",")
+
+#Now, let's make the data more containable, for this hw exercise
+md <- mushroom_data[c(1:10),1:4]
+
+# Let's take a look at the output:
+md
+```
+
+Next add meaningful column names...
+```{r}
+names(md) <- c("Edible", "cap_shape", "cap_surface", "cap_color")
+md
+```
+
+Last, replace the abbreviations used in the data
+```{r}
+require(stringr)
+md$Edible <- str_replace(md$Edible,"p", "poisonous")
+md$Edible <- str_replace(md$Edible, "e", "edible")
+
+md$cap_shape <- str_replace(md$cap_shape,"b","bell")
+md$cap_shape <- str_replace(md$cap_shape, "x", "convex")
+md$cap_shape <- str_replace(md$cap_shape, "f", "flat")
+
+md$cap_surface <- str_replace(md$cap_surface, "y$", "scaly")
+md$cap_surface <- str_replace(md$cap_surface, "s$", "smooth")
+
+#Note that for the following we needed an exact match
+md$cap_color <- str_replace(md$cap_color, "^n$", "brown")
+md$cap_color <- str_replace(md$cap_color, "^b$", "buff")
+md$cap_color <- str_replace(md$cap_color, "^c$", "cinnamon")
+md$cap_color <- str_replace(md$cap_color, "^g$", "gray")
+md$cap_color <- str_replace(md$cap_color, "^r$", "green")
+md$cap_color <- str_replace(md$cap_color, "^p$", "pink")
+md$cap_color <- str_replace(md$cap_color, "^u$", "purple")
+md$cap_color <- str_replace(md$cap_color, "^e$", "red")
+md$cap_color <- str_replace(md$cap_color, "^w$", "white")
+md$cap_color <- str_replace(md$cap_color, "^y$", "yellow")
+
+#Let's tkae a look at the output
+md
+```
+
+Voila!
+
+While this accomplished the goals of the assignment, I suspect there is a more elegant way to replace the single characters with words, but I was unable to do so unfortunately.
