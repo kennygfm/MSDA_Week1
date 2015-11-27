@@ -1,0 +1,87 @@
+---
+title: 'Homework Assignment #4'
+author: "Ken Markus"
+date: "November 27, 2015"
+output: html_document
+---
+**Assignment is as follows**
+
+Exploratory Data Analysis in R. Choose an interesting dataset and use R graphics to describe the data. You may use base R graphics, or a graphics package of your choice. You should include at least one example of each of the
+following:
+ - histogram
+ - boxplot
+ - scatterplot
+ 
+Do the graphics provide insight into any relationships in the data?
+
+** Analysis below **
+
+```{r}
+#Begin by loading and exploring the data
+approval_df <- read.csv("http://vincentarelbundock.github.io/Rdatasets/csv/Zelig/approval.csv")
+head(approval_df)
+summary(approval_df)
+```
+
+There is a lot of data! Even reviewing the summary information we can see that there were great swings of approval and disapproval, visually this will become clearer. So let's do a few graphical representations of the data. We will use the ggplot2 package.
+
+```{r}
+require(ggplot2)
+ggplot(data = approval_df) + geom_histogram(aes(x = approve))
+```
+
+This histogram allows us to see the variation and relative frequency of each approval rating. However, we likely want to review performance over time, and for we have a few options.
+```{r}
+#Break out histogram by year
+ggplot(data = approval_df) + geom_histogram(aes(x = approve)) + facet_wrap(~year)
+```
+
+Ideally however we can map out approval over time, with time on the x-axis.
+```{r}
+ggplot(approval_df, aes(x = X, y = approve)) + geom_point()
+```
+
+Wow! Now we are seeing something very interesting! Overall trending shows a sharp decline - the question is why. Let's look at a box plot of the data but break it out by two events: 9/11 and the Iraq war.
+```{r}
+ggplot(approval_df, aes(y = approve, x = 1)) + geom_boxplot() + facet_wrap(sept.oct.2001 ~ iraq.war)
+```
+
+We do get an output, but the facet labels are terrible. So, how do we fix that? I had to do some research and learned about the labeller function, but this seems to only work with facet_grid rather than facet_wrap:
+```{r}
+plot_labeller <- function(variable,value){
+  if (variable=='sept.oct.2001') {
+    value[value==0] <- "Not 9/11"
+    value[value==1] <- "9/11"
+  } else if (variable=='iraq.war') {
+    value[value==0] <- "Iraq War Not Happening"
+    value[value==1] <- "Iraq War Happening"
+  } else {
+    return(as.character(value))
+  }
+  return(value)
+}
+
+ggplot(approval_df, aes(y = approve, x = 1)) + geom_boxplot() + facet_grid(sept.oct.2001 ~ iraq.war, labeller = plot_labeller)
+```
+
+Not bad, but it would be nice to see all of this along one horizontal, and with better labels. This was tougher than I thought and took some research...
+
+```{r}
+ggplot(approval_df, aes(y = approve, x = 1)) + geom_boxplot() + facet_grid(~sept.oct.2001 + iraq.war, labeller = plot_labeller)
+```
+
+
+This elucidates one of the niceties of defining the facets in facet_grid, namely we can combine multiple variables into one axis.
+
+This box plot reveals how 9/11 and the Iraq war impacted approval ratings quite clearly. Namely, approval ratings were at the lowest during periods absent of 9/11 or the Iraq War.
+
+It might also be interesting to compare average prices to presidential approval as well. So let's see if there is any correlation:
+```{r}
+ggplot(approval_df, aes(x = avg.price, y = approve)) + geom_point() + scale_y_continuous("Approval Rating")
+```
+
+Here we can see a clear correlation of prices and approval ratings. It would be interesting to see if this correlation is as strong during 9/11 and the Iraq War periods. So let's add the facets.
+```{r}
+ggplot(approval_df, aes(x = avg.price, y = approve)) + geom_point() + scale_y_continuous("Approval Rating") + scale_x_continuous("Average Price") + facet_grid(~sept.oct.2001 + iraq.war, labeller = plot_labeller)
+```
+And what we get shows that we just do not have enough data - perhaps it would be interesting to pull data from multiple presidents and their approval during wartime vs. peace, and what the correlation coefficient would be for average prices during those periods.
