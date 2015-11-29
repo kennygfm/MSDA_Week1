@@ -1,0 +1,141 @@
+---
+title: "Final Assignment"
+author: "Ken Markus"
+date: "November 27, 2015"
+output: html_document
+---
+
+This project is where you show off your ability to (1) use R packages, (2) change the shape of data in a data frame, and (3) provide basic summary statistics and graphics as part of your exploratory data analysis.
+* You should start by installing and loading the R package hflights, which is available on CRAN and described
+here: https://cran.r-project.org/web/packages/hflights/hflights.pdf
+* You should perform some basic transformations on the data frame, such as including only a subset of columns,
+created one or more new derived columns (such as flight date), and/or filtering out rows.
+* You should then create basic summary statistics. You should create at least one interesting question for
+analysis, and answer the question using two or more graphics in R.
+
+```{r include=FALSE}
+# Load the flights package along with a few others we know we'll need
+require(hflights)
+require(ggplot2)
+require(stringr)
+require(plyr)
+```
+
+```{r}
+# Let's take a look at the data
+head(hflights)
+
+# Now let's look at the summary information
+summary(hflights)
+```
+
+Lots of interesting information here. For purposes of the final assignment, we will focus on analytics around *delays*. Ideally identifying some predictability around delays so we can be smarter about our bookings.
+
+```{r}
+#create a new dataframe removing the non-finite Delay and Arrival values
+finite_index = is.finite(hflights$DepDelay) == TRUE
+hflights_usable <- hflights[finite_index, ]
+
+finite_index = is.finite(hflights_usable$ArrDelay) == TRUE
+hflights_usable <- hflights_usable[finite_index, ]
+
+#Let's look at the chart
+ggplot(data = hflights_usable) + geom_density(aes(x = DepDelay))
+```
+
+One thing that is quite clear visually, is that the delays exhibit a 'long tail' like distribution. If we take a look at the percentile distributions, we will see further evidence of large values away from the mean.
+```{r}
+quantile(hflights_usable$DepDelay, c(0.1, .2, .3, .4, .5, .6, .7, .8, .9, .99, .999))
+```
+
+We will also edit the data frame such that we can see relationships of some variables (delays) relative to the date of the delay.
+```{r}
+hflights_dates <- paste(hflights_usable$Year, "-", hflights_usable$Month, "-", hflights_usable$DayofMonth)
+# Remove all of the whitespace
+hflights_dates <- str_replace_all(hflights_dates, " ", "")
+
+#convert the strings to Date class
+hflights_dates <- as.Date(hflights_dates)
+
+
+#append the date information to our usable data frame, and remove the non-essential date information
+hflights_usable[,"FlightDate"] <- hflights_dates
+hflights_usable <- subset(hflights_usable, select=-Year)
+hflights_usable <- subset(hflights_usable, select=-Month)
+hflights_usable <- subset(hflights_usable, select=-DayofMonth)
+```
+
+For our first visual data analysis, let's see if delays exhibited any pattern or fluctuation over time
+```{r}
+ggplot(hflights_usable, aes(x = FlightDate, y = DepDelay)) + geom_point(shape=1)
+```
+
+Upon review we see **no pattern** here. So we'll need to dive in more.
+
+Next, let's take a look at the relationship between departure delays and arrival delays, likely there is a relationship...
+```{r}
+ggplot(hflights_usable, aes(y = DepDelay, x = ArrDelay)) + geom_point(aes(color = Origin))
+```
+
+Voila! Clearly there is a relationship, and arrival delays can be predictive when it comes to departure delays.
+
+Perhaps the carrier also has some effect. Now, we'll focus on arrival delays.
+```{r}
+ggplot(hflights_usable, aes(x = UniqueCarrier, y = ArrDelay)) + geom_violin()
+```
+
+This is indeed the case, with certain carriers, such as CO and AA having a much longer tail, and YV having the shortest. We should also take a look at the medians by carrier.
+```{r}
+aggregate(ArrDelay ~ UniqueCarrier, hflights_usable, each(median,mean))
+# Get all the summary stats by carrier
+aggregate(hflights_usable$ArrDelay, by = list(hflights_usable$UniqueCarrier), FUN = summary)
+```
+
+Upon review, we will limit the remainder of our analysis to those airlines with significant delays (the top 3 based on median), for both arrivals and departures.
+
+```{r}
+hf_sum <- ddply(hflights_usable, .(UniqueCarrier), summarize, mean=round(mean(ArrDelay),2), max=round(max(ArrDelay),2), median=round(median(ArrDelay,2)))
+index <- with(hf_sum, order(-median, -mean, -max))
+hf_sum <- hf_sum[index,]
+hf_sum <- hf_sum[1:3,]
+# Output the resultant so we can identify the carriers
+hf_sum
+```
+
+So we have identified the carriers with the worst arrival delays as 'OO', 'F9', and 'UA'. Now, let's identify those with the worst departure delays.
+
+```{r}
+hf_sum <- ddply(hflights_usable, .(UniqueCarrier), summarize, mean=round(mean(DepDelay),2), max=round(max(DepDelay),2), median=round(median(DepDelay,2)))
+index <- with(hf_sum, order(-median, -mean, -max))
+hf_sum <- hf_sum[index,]
+hf_sum <- hf_sum[1:3,]
+```
+So we have identified the carriers with the worst departure delays as 'WN', 'CO', and 'UA'. 
+
+Let's work with a smaller data frame and do just a bit more analysis, limiting ourselves to what looks like the worst carrier in terms of delays: UA.
+```{r}
+hf <- subset(hflights_usable, UniqueCarrier == "UA")
+
+# Now let's compare Destination output
+hf_sum <- ddply(hf, .(Dest), summarize, 
+                flight_count=length(!is.na(DepDelay)),
+                mean_a=round(mean(ArrDelay),2),
+                mean_d=round(mean(DepDelay),2), 
+                max_a=round(max(ArrDelay),2), 
+                max_d=round(max(DepDelay),2), 
+                median_a=round(median(ArrDelay),2),
+                median_d=round(median(DepDelay),2))
+index <- with(hf_sum, order(-flight_count, -median_d, -mean_d, -max_d))
+hf_sum <- hf_sum[index,]
+hf_sum
+
+# This gives us the top 6 Destination cities in terms of delay (based on median)
+# We only include the top 4 based on the very low flight counts of SAN and MCI
+hf <- subset(hf, Dest == "SFO" | Dest == "ORD" | Dest == "DEN" | Dest == "IAD")
+#One final chart that provides some visual of the delays
+ggplot(hf, aes( x = DepDelay)) + geom_histogram() + facet_wrap(~Dest)
+
+# This also shows us some of the summary stats
+ddply(hf, .(Dest), summarize, mean=round(mean(ArrDelay),2), max=round(max(ArrDelay),2), median=round(median(ArrDelay,2)), sd=round(sd(ArrDelay),2))
+```
+Based on all of this we can see that probably the worst destination, when leaving from Houston is San Francisco, a bit surprising given the distance.
